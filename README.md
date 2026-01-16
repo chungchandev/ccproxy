@@ -1,12 +1,12 @@
 # CCProxy
 
-[![GitHub Actions CI](https://github.com/chungchan-dev/ccproxy/actions/workflows/ci.yml/badge.svg)](https://github.com/chungchan-dev/ccproxy/actions/workflows/ci.yml) [![GitHub release (latest by date)](https://img.shields.io/github/v/release/chungchan-dev/ccproxy)](https://github.com/chungchan-dev/ccproxy/releases/latest) [![Made with Rust](https://img.shields.io/badge/Made%20with-Rust-orange?style=flat&logo=rust)](https://www.rust-lang.org/) [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![GitHub Actions CI](https://github.com/chungchandev/ccproxy/actions/workflows/ci.yml/badge.svg)](https://github.com/chungchandev/ccproxy/actions/workflows/ci.yml) [![GitHub release (latest by date)](https://img.shields.io/github/v/release/chungchandev/ccproxy)](https://github.com/chungchandev/ccproxy/releases/latest) [![Made with Rust](https://img.shields.io/badge/Made%20with-Rust-orange?style=flat&logo=rust)](https://www.rust-lang.org/) [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 A modern, fast, and configurable proxy for Minecraft: Bedrock Edition.
 
 ## About
 
-[CCProxy](https://github.com/chungchan-dev/ccproxy) is a lightweight proxy server for Minecraft: Bedrock Edition, built in Rust. It's designed to be easy to use, yet highly configurable.
+[CCProxy](https://github.com/chungchandev/ccproxy) is a lightweight proxy server for Minecraft: Bedrock Edition, built in Rust. It's designed to be easy to use, yet highly configurable.
 
 ## Features
 
@@ -29,12 +29,12 @@ You can run it using Docker with the following command:
 docker run \
   -p 19132:19132/udp \
   -v ./data/:/app/data/ \
-  ghcr.io/chungchan-dev/ccproxy:latest
+  ghcr.io/chungchandev/ccproxy:latest
 ```
 
 ### GitHub Releases
 
-You can also download the latest binary from the [GitHub Releases page](https://github.com/chungchan-dev/ccproxy/releases/latest).
+You can also download the latest binary from the [GitHub Releases page](https://github.com/chungchandev/ccproxy/releases/latest).
 
 1.  Download the appropriate binary for your system.
 2.  Run the executable file.

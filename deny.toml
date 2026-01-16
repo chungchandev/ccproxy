@@ -13,5 +13,5 @@ ignore = true
 
 [sources]
 allow-git = [
-    "https://github.com/chungchan-dev/rust-raknet.git"
+    "https://github.com/chungchandev/rust-raknet.git"
 ]
