@@ -2,46 +2,143 @@
 
 [![GitHub Actions CI](https://github.com/chungchandev/ccproxy/actions/workflows/ci.yml/badge.svg)](https://github.com/chungchandev/ccproxy/actions/workflows/ci.yml) [![GitHub release (latest by date)](https://img.shields.io/github/v/release/chungchandev/ccproxy)](https://github.com/chungchandev/ccproxy/releases/latest) [![Made with Rust](https://img.shields.io/badge/Made%20with-Rust-orange?style=flat&logo=rust)](https://www.rust-lang.org/) [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-A modern, fast, and configurable proxy for Minecraft: Bedrock Edition.
+A lightweight, high-performance reverse proxy for Minecraft: Bedrock Edition, built with Rust.
 
-## About
-
-[CCProxy](https://github.com/chungchandev/ccproxy) is a lightweight proxy server for Minecraft: Bedrock Edition, built in Rust. It's designed to be easy to use, yet highly configurable.
+CCProxy sits in front of your Bedrock server and forwards player traffic while keeping server discovery data, query responses, and operational logging in sync. It is designed to be easy to deploy, simple to configure, and fast under load.
 
 ## Features
 
-- **High Performance:** Built with Rust and Tokio for asynchronous, non-blocking I/O.
-- **Official BDS and GeyserMC Support:** Works with the official [Minecraft Bedrock Dedicated Server](https://www.minecraft.net/en-us/download/server/bedrock) and [GeyserMC](https://geysermc.org).
-- **Easy to Use:** Get started in minutes with a simple CLI.
-- **Single Binary:** No external dependencies needed, just a single executable file makes it easy to run.
-- **Configurable:** Customize the proxy to your needs with a simple YAML configuration file.
-- **HAProxy v2 Protocol Support:** Enables you to get the real IP address of the player.
+- **High Performance**: Built with Rust and the Tokio async runtime for non-blocking I/O.
+- **MOTD Forwarding**: Automatically syncs the server MOTD from the upstream Bedrock server every 5 seconds, with fallback support.
+- **Query Protocol**: Full implementation of the Minecraft Query Protocol, proxied from the upstream server with automatic updates.
+- **HAProxy v2 Protocol**: Optional PROXY protocol support to preserve the real client IP address on the upstream server.
+- **BDS and GeyserMC Compatible**: Works with the official Minecraft Bedrock Dedicated Server and GeyserMC.
+- **Flexible Configuration**: YAML config file with environment variable overrides, prefixed with `CCPROXY__`.
+- **Structured Logging**: Dual output (stdout plus rolling daily log files) with configurable log levels and JSON format support.
+- **Graceful Shutdown**: Clean shutdown handling with configurable timeout.
+- **Single Binary**: Zero external dependencies, just one executable.
 
-## Usage
+## Quick Start
 
-There are two recommended ways to run CCProxy:
-
-### Docker
-
-You can run it using Docker with the following command:
+### Docker (recommended)
 
 ```sh
-docker run \
+docker run -d \
+  --name ccproxy \
   -p 19132:19132/udp \
-  -v ./data/:/app/data/ \
+  -v ./data:/app/data \
   ghcr.io/chungchandev/ccproxy:latest
 ```
 
-### GitHub Releases
+### Pre-built Binary
 
-You can also download the latest binary from the [GitHub Releases page](https://github.com/chungchandev/ccproxy/releases/latest).
+1. Download the latest release from: https://github.com/chungchandev/ccproxy/releases/latest
+2. Run `./ccproxy run`
+3. A default config is auto-generated at `data/config/config.yaml`
 
-1.  Download the appropriate binary for your system.
-2.  Run the executable file.
+## Configuration
+
+On first run, CCProxy generates a default config file at `data/config/config.yaml`.
+
+You can override any value with environment variables prefixed with `CCPROXY__`. For nested keys, use double underscores, for example `CCPROXY__PROXY__ADDRESS`.
+
+```yaml
+# Logging configuration
+log:
+  # Stdout logging
+  stdout:
+    filter: "info"        # Log level filter (trace, debug, info, warn, error)
+    format: plain          # Log format: "plain" or "json"
+  # File logging (daily rolling files in data/logs/)
+  file:
+    filter: "info"
+    format: plain
+
+# Proxy server configuration
+proxy:
+  address: "0.0.0.0:19132"   # Address the proxy listens on
+  # Fallback MOTD shown when the upstream server is unreachable
+  fallback_motd:
+    edition: MCPE              # MCPE (Bedrock) or MCEE (Education Edition)
+    server_name: "CCProxy"
+    protocol_version: 827
+    version: "1.21.101"
+    num_players: 0
+    max_players: 100
+    server_sub_name: "CCProxy"
+    gametype: Survival         # Survival or Creative
+    nintendo_limited: false
+    ipv4_port: 19132
+    ipv6_port: null
+  # Fallback Query Protocol response
+  fallback_query:
+    motd: "CCProxy"
+    game_type: "SMP"
+    map: "CCProxy"
+    num_players: 0
+    max_players: 100
+    host_port: 19132
+    host_ip: "0.0.0.0"
+    version: "1.21.101"
+
+# Upstream (backend) server configuration
+upstream:
+  address: "127.0.0.1:19133"           # Upstream Bedrock server address
+  query_address: "127.0.0.1:19133"     # Upstream Query Protocol address (null to disable)
+  proxy_protocol: false                  # Enable HAProxy v2 PROXY protocol
+```
+
+### Environment Variables
+
+- All config values can be overridden with environment variables.
+- Prefix: `CCPROXY__`
+- Nesting uses double underscore: `__`
+- Example: `CCPROXY__UPSTREAM__ADDRESS=192.168.1.100:19133`
+- A `.env` file in the working directory is supported.
+
+## Supported Platforms
+
+| Platform | Target | Download |
+|---|---|---|
+| Linux x86_64 | `x86_64-unknown-linux-gnu` | `.tar.gz` |
+| macOS x86_64 | `x86_64-apple-darwin` | `.tar.gz` |
+| Windows x86_64 | `x86_64-pc-windows-msvc` | `.zip` |
+| Docker (Linux) | `ghcr.io/chungchandev/ccproxy` | OCI Image |
+
+## Building from Source
+
+Prerequisites: Rust toolchain (edition 2024).
+
+```sh
+git clone https://github.com/chungchandev/ccproxy.git
+cd ccproxy
+cargo build --release
+```
+
+The binary will be available at `target/release/ccproxy`.
+
+Nix flake support is also available:
+
+```sh
+nix build
+# or run directly
+nix run . -- run
+```
+
+## Architecture
+
+- **Proxy Core**: Accepts RakNet connections and creates bidirectional tunnels (Client<->Server) for each session.
+- **MOTD Updater**: Periodically pings the upstream server and updates the advertised MOTD.
+- **Query Handler**: Implements the Minecraft Query Protocol with challenge token authentication, syncing stats from upstream.
+- **Config Loader**: Merges YAML config with environment variable overrides using Figment.
 
 ## Contributing
 
-All contributions are welcome! Please feel free to submit a pull request or open an issue.
+Contributions of all sizes are welcome.
+
+- Open issues or feature requests: https://github.com/chungchandev/ccproxy/issues
+- The project uses conventional commits, and CI validates commit messages with `convco` checks.
+- CI quality checks include `clippy`, `rustfmt`, `cargo-audit`, and `cargo-deny`.
 
 ## License
 
