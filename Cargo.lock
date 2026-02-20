@@ -654,7 +654,7 @@ checksum = "2b15c43186be67a4fd63bee50d0303afffcef381492ebe2c5d87f324e1b8815c"
 [[package]]
 name = "rust-raknet"
 version = "0.13.0"
-source = "git+https://github.com/chungchandev/rust-raknet.git?rev=88c6e0f8c01859b2600fb1d41bf026f4598a3c0b#88c6e0f8c01859b2600fb1d41bf026f4598a3c0b"
+source = "git+https://github.com/chungchandev/rust-raknet.git?rev=6195cedc5f33daa8e02701605afd4088ee84e93a#6195cedc5f33daa8e02701605afd4088ee84e93a"
 dependencies = [
  "bytes",
  "proxy-header",
