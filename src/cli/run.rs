@@ -343,11 +343,7 @@ async fn run_motd_updater(
                     .on_failure(ErrorAction::CatchAndLocalShutdown);
 
                 if let Err(err) = sub_sys.start(ping_task).join().await {
-                    if let Some(err) = sub_sys_err_to_ccproxy_err(&err) {
-                        tracing::error!("Cannot update the MOTD from the upstream server: {err}");
-                    } else {
-                        tracing::error!("Cannot update the MOTD from the upstream server: {err}");
-                    }
+                    tracing::error!("Cannot update the MOTD from the upstream server: {err}");
 
                     let fallback_motd = fallback_motd.clone().encode(Some(guid));
 

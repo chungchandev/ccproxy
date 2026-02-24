@@ -1,5 +1,5 @@
 use crate::config::ProxyQueryConfig;
-use crate::error::{CCProxyError, CCProxyResult, sub_sys_err_to_ccproxy_err};
+use crate::error::{CCProxyError, CCProxyResult};
 use std::collections::HashMap;
 use std::ffi::CString;
 use std::io::Cursor;
@@ -93,11 +93,7 @@ impl QueryHandler {
                             .on_failure(ErrorAction::CatchAndLocalShutdown);
 
                         if let Err(err) = sub.start(query_task).join().await {
-                            if let Some(err) = sub_sys_err_to_ccproxy_err(&err) {
-                                tracing::error!("Cannot update the Query from the upstream query server: {}", err);
-                            } else {
-                                tracing::error!("Cannot update the Query from the upstream query server: {}", err);
-                            }
+                            tracing::error!("Cannot update the Query from the upstream query server: {}", err);
 
                             // Reset to fallback.
                             {
