@@ -20,10 +20,11 @@ pub async fn run(config: CCProxyConfig) -> CCProxyResult<()> {
         built_info::PKG_VERSION
     );
 
-    Toplevel::<CCProxyError>::new(move |s| async move {
-        s.start(SubsystemBuilder::new("ProxyServer", move |s| {
-            listen(s, config)
-        }));
+    Toplevel::<CCProxyError>::new(async move |s: &mut SubsystemHandle<CCProxyError>| {
+        s.start(SubsystemBuilder::new(
+            "ProxyServer",
+            async move |s: &mut SubsystemHandle<CCProxyError>| listen(s, config).await,
+        ));
     })
     .catch_signals()
     .handle_shutdown_requests(std::time::Duration::from_millis(5_000))
@@ -35,7 +36,7 @@ pub async fn run(config: CCProxyConfig) -> CCProxyResult<()> {
 }
 
 async fn listen(
-    sub_sys: SubsystemHandle<CCProxyError>,
+    sub_sys: &mut SubsystemHandle<CCProxyError>,
     config: CCProxyConfig,
 ) -> CCProxyResult<()> {
     let start_time = Instant::now();
@@ -57,9 +58,12 @@ async fn listen(
 
     let updater_config = config.clone();
     let guid = server.guid();
-    sub_sys.start(SubsystemBuilder::new("ProxyMotdUpdater", move |sub| {
-        run_motd_updater(sub, updater_config, motd, guid)
-    }));
+    sub_sys.start(SubsystemBuilder::new(
+        "ProxyMotdUpdater",
+        async move |sub: &mut SubsystemHandle<CCProxyError>| {
+            run_motd_updater(sub, updater_config, motd, guid).await
+        },
+    ));
 
     server.listen().await;
     tracing::debug!("RaknetListener(GUID: {guid}) is started.");
@@ -70,9 +74,9 @@ async fn listen(
         let query_socket = server.get_raw_socket().unwrap();
         sub_sys.start(SubsystemBuilder::new(
             "QueryHandler",
-            move |sub| async move {
+            async move |sub: &mut SubsystemHandle<CCProxyError>| {
                 let query_handler = QueryHandler::new(query_address, &config.proxy.fallback_query);
-                query_handler.init(&sub).await;
+                query_handler.init(sub).await;
 
                 loop {
                     tokio::select! {
@@ -107,13 +111,13 @@ async fn listen(
                 let upstream_proxy_protocol = config.upstream.proxy_protocol;
 
                 let conn_task = SubsystemBuilder::new(
-                    format!("Client_{client_address}"), move |sub| handle_connection(sub, upstream_address, upstream_proxy_protocol, conn)
+                    format!("Client_{client_address}"), async move |sub: &mut SubsystemHandle<CCProxyError>| handle_connection(sub, upstream_address, upstream_proxy_protocol, conn).await
                 )
                     .on_failure(ErrorAction::CatchAndLocalShutdown);
                 let conn_task_start = sub_sys.start(conn_task);
 
                 // Should not block server.accept() so use new task for catching errors.
-                let conn_catch_task = SubsystemBuilder::new(format!("ClientCatch_{client_address}"), move |sub| async move {
+                let conn_catch_task = SubsystemBuilder::new(format!("ClientCatch_{client_address}"), async move |sub: &mut SubsystemHandle<CCProxyError>| {
                     tokio::select! {
                         err = conn_task_start.join() => {
                             if let Err(err) = err && let Some(err) = sub_sys_err_to_ccproxy_err(&err) {
@@ -149,7 +153,7 @@ async fn listen(
 }
 
 async fn handle_connection(
-    sub_sys: SubsystemHandle<CCProxyError>,
+    sub_sys: &mut SubsystemHandle<CCProxyError>,
     upstream_address: SocketAddr,
     upstream_proxy_protocol: bool,
     client: RaknetSocket,
@@ -195,12 +199,18 @@ async fn handle_connection(
     let c2s_server = server_clone.clone();
     let s2c_server = server_clone.clone();
 
-    let c2s = SubsystemBuilder::new(format!("Client_{client_address}_c2s"), move |sub| {
-        handle_c2s(sub, c2s_client.clone(), c2s_server.clone())
-    });
-    let s2c = SubsystemBuilder::new(format!("Client_{client_address}_s2c"), move |sub| {
-        handle_s2c(sub, s2c_client.clone(), s2c_server.clone())
-    });
+    let c2s = SubsystemBuilder::new(
+        format!("Client_{client_address}_c2s"),
+        async move |sub: &mut SubsystemHandle<CCProxyError>| {
+            handle_c2s(sub, c2s_client.clone(), c2s_server.clone()).await
+        },
+    );
+    let s2c = SubsystemBuilder::new(
+        format!("Client_{client_address}_s2c"),
+        async move |sub: &mut SubsystemHandle<CCProxyError>| {
+            handle_s2c(sub, s2c_client.clone(), s2c_server.clone()).await
+        },
+    );
 
     sub_sys.start(c2s);
     sub_sys.start(s2c);
@@ -213,7 +223,7 @@ async fn handle_connection(
 }
 
 async fn handle_c2s(
-    sub_sys: SubsystemHandle<CCProxyError>,
+    sub_sys: &mut SubsystemHandle<CCProxyError>,
     client: Arc<RaknetSocket>,
     server: Arc<RaknetSocket>,
 ) -> CCProxyResult<()> {
@@ -243,7 +253,7 @@ async fn handle_c2s(
 }
 
 async fn handle_s2c(
-    sub_sys: SubsystemHandle<CCProxyError>,
+    sub_sys: &mut SubsystemHandle<CCProxyError>,
     client: Arc<RaknetSocket>,
     server: Arc<RaknetSocket>,
 ) -> CCProxyResult<()> {
@@ -308,7 +318,7 @@ async fn handle_s2c_packet(
 }
 
 async fn run_motd_updater(
-    sub_sys: SubsystemHandle<CCProxyError>,
+    sub_sys: &mut SubsystemHandle<CCProxyError>,
     config: CCProxyConfig,
     motd: Arc<RwLock<String>>,
     guid: u64,
@@ -325,7 +335,7 @@ async fn run_motd_updater(
         tokio::select! {
             // Update MOTD from the upstream server every 5 seconds.
             _ = interval.tick() => {
-                let ping_task = SubsystemBuilder::new("ProxyMotdUpdater_Ping", move |sub| async move {
+                let ping_task = SubsystemBuilder::new("ProxyMotdUpdater_Ping", async move |sub: &mut SubsystemHandle<CCProxyError>| {
                     let motd_clone = motd_clone.clone();
 
                     update_motd(sub, upstream_address, motd_clone.clone(), fallback_motd_clone, guid, proxy_protocol).await
@@ -358,7 +368,7 @@ async fn run_motd_updater(
 }
 
 async fn update_motd(
-    sub_sys: SubsystemHandle<CCProxyError>,
+    sub_sys: &mut SubsystemHandle<CCProxyError>,
     upstream_address: SocketAddr,
     motd: Arc<RwLock<String>>,
     fallback_motd: BedrockMotd,

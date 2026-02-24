@@ -31,13 +31,13 @@ impl QueryHandler {
         }
     }
 
-    pub async fn init(&self, sub_sys: &SubsystemHandle<CCProxyError>) {
+    pub async fn init(&self, sub_sys: &mut SubsystemHandle<CCProxyError>) {
         let challenge_tokens = self.challenge_tokens.clone();
 
         // Reset all challenge tokens every 30 seconds.
         sub_sys.start(SubsystemBuilder::new(
             "QueryHandlerTicker",
-            move |sub| async move {
+            async move |sub: &mut SubsystemHandle<CCProxyError>| {
                 loop {
                     tokio::select! {
                         _ = tokio::time::sleep(std::time::Duration::from_secs(30)) => {
@@ -60,7 +60,7 @@ impl QueryHandler {
         let query_clone = self.query.clone();
 
         // Get the upstream Query every 10 seconds.
-        sub_sys.start(SubsystemBuilder::new("QueryHandlerUpdater", move |sub| async move {
+        sub_sys.start(SubsystemBuilder::new("QueryHandlerUpdater", async move |sub: &mut SubsystemHandle<CCProxyError>| {
             let query_clone2 = query_clone.clone();
 
             let mut interval = tokio::time::interval(Duration::from_secs(5));
@@ -69,7 +69,7 @@ impl QueryHandler {
                     // Request a query every 10 seconds.
                     _ = interval.tick() => {
                         let query_clone = query_clone.clone();
-                        let query_task = SubsystemBuilder::new("QueryHandlerUpdater_Query", move |sub| async move {
+                        let query_task = SubsystemBuilder::new("QueryHandlerUpdater_Query", async move |sub: &mut SubsystemHandle<CCProxyError>| {
                             tokio::select! {
                                 query = Self::query(&upstream_address, Duration::from_secs(5), 1, true) => {
                                     if let QueryResponsePacketPayload::FullStat { k_v_section, players } = query?.payload {
