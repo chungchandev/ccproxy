@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.1.2] - 2026-02-24
+
+### 🐛 Bug Fixes
+
+- Query basic stat player counts
+- Replace CString unwrap panics with proper error propagation in query
+
+### 🚜 Refactor
+
+- Remove redundant error handling branches in MOTD and query updaters
+
+### ⚙️ Miscellaneous Tasks
+
+- Trigger CI check on the PR too
+- Update crates and flakes
+
 ## [0.1.1] - 2026-02-20
 
 ### 📚 Documentation
@@ -10,6 +26,7 @@
 
 - Update repository URL
 - Update rust-raknet crate
+- *(release)* V0.1.1
 
 ## [0.1.0] - 2025-09-27
 

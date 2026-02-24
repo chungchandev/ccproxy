@@ -1,6 +1,6 @@
 [package]
 name = "ccproxy"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Chanho Chung <hello@chungchan.dev>"]
 edition = "2024"
 description = "A lightweight reverse proxy for Minecraft Bedrock Edition servers."
