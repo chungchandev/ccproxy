@@ -588,7 +588,7 @@ impl QueryResponsePacketPayload {
         match self {
             Self::Handshake { challenge_token } => {
                 // The token is encoded as null-terminated string.
-                let challenge_token = CString::new(challenge_token.to_string()).unwrap();
+                let challenge_token = to_cstring(challenge_token.to_string())?;
                 buf.write_all(challenge_token.as_bytes_with_nul()).await?;
             }
             Self::BasicStat {
@@ -600,18 +600,18 @@ impl QueryResponsePacketPayload {
                 host_port,
                 host_ip: host_address,
             } => {
-                let motd = CString::new(motd.as_str()).unwrap();
+                let motd = to_cstring(motd.as_str())?;
                 buf.write_all(motd.as_bytes_with_nul()).await?;
-                let game_type = CString::new(game_type.as_str()).unwrap();
+                let game_type = to_cstring(game_type.as_str())?;
                 buf.write_all(game_type.as_bytes_with_nul()).await?;
-                let map = CString::new(map.as_str()).unwrap();
+                let map = to_cstring(map.as_str())?;
                 buf.write_all(map.as_bytes_with_nul()).await?;
-                let num_players = CString::new(num_players.to_string()).unwrap();
+                let num_players = to_cstring(num_players.to_string())?;
                 buf.write_all(num_players.as_bytes_with_nul()).await?;
-                let max_players = CString::new(max_players.to_string()).unwrap();
+                let max_players = to_cstring(max_players.to_string())?;
                 buf.write_all(max_players.as_bytes_with_nul()).await?;
                 buf.write_u16_le(*host_port).await?;
-                let host_address = CString::new(host_address.to_string()).unwrap();
+                let host_address = to_cstring(host_address.to_string())?;
                 buf.write_all(host_address.as_bytes_with_nul()).await?;
             }
             Self::FullStat {
@@ -620,15 +620,15 @@ impl QueryResponsePacketPayload {
             } => {
                 buf.write_all(b"splitnum\x00\x80\x00").await?;
                 for (k, v) in k_v_section {
-                    let k = CString::new(k.as_str()).unwrap();
+                    let k = to_cstring(k.as_str())?;
                     buf.write_all(k.as_bytes_with_nul()).await?;
-                    let v = CString::new(v.as_str()).unwrap();
+                    let v = to_cstring(v.as_str())?;
                     buf.write_all(v.as_bytes_with_nul()).await?;
                 }
                 buf.write_u8(0x00).await?;
                 buf.write_all(b"\x01player_\x00\x00").await?;
                 for p in players {
-                    let p = CString::new(p.as_str()).unwrap();
+                    let p = to_cstring(p.as_str())?;
                     buf.write_all(p.as_bytes_with_nul()).await?;
                 }
                 buf.write_u8(0x00).await?;
@@ -659,4 +659,8 @@ pub async fn read_string_to_null(buf: &mut Cursor<Vec<u8>>) -> CCProxyResult<Str
     buf.read_until(0x00, &mut string).await?;
     string.pop();
     String::from_utf8(string).map_err(|_| CCProxyError::QueryInvalid)
+}
+
+fn to_cstring(s: impl Into<Vec<u8>>) -> CCProxyResult<CString> {
+    CString::new(s).map_err(|_| CCProxyError::QueryInvalid)
 }
